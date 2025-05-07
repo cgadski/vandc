@@ -23,3 +23,8 @@ def fetch(name: str) -> pd.DataFrame:
 
 def meta(name: str):
     return _meta(name)
+
+def run_name() -> str:
+    if _writer is not None:
+        return _writer.run
+    raise RuntimeError("Run not initialized")

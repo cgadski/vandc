@@ -60,6 +60,8 @@ def _get_command():
 
 
 class Writer:
+    run: str
+
     def log(self, d: dict, step: Optional[int], commit: bool):
         pass
 
