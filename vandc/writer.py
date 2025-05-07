@@ -1,6 +1,7 @@
 import json
 import csv
 import os
+import sqlite3
 from typing import List, Optional, Tuple, Dict, Any
 import pandas as pd
 import torch as t
@@ -11,7 +12,8 @@ from loguru import logger
 import sys
 from pathlib import Path
 
-VANDC_DIR = ".vandc"
+VANDC_DIR = Path(".vandc")
+DB_PATH = VANDC_DIR / "db.sqlite"
 
 
 def _get_git_commit():
@@ -77,31 +79,72 @@ class CsvWriter(Writer):
     ):
         self.run = human_id.generate_id()
         os.makedirs(VANDC_DIR, exist_ok=True)
-        self.csv_path = Path(VANDC_DIR) / f"{self.run}.csv"
+        self.csv_path = VANDC_DIR / f"{self.run}.csv"
 
-        self.metadata = {
-            "run": self.run,
-            "time": datetime.now().isoformat(),
-            "command": _get_command(),
-            "git_commit": _get_git_commit(),
-            "config": json.dumps(vars(config))
-            if hasattr(config, "__dict__")
-            else str(config),
-        }
+        self.config = config
 
         self.step = 0
         self.csv_file = None
         self.writer = None
 
+        self.conn = sqlite3.connect(DB_PATH)
+        self.conn.autocommit = True
+        self._ensure_tables()
+
         logger.opt(raw=True, colors=True).info(
-            f"Starting run: <green>{self.run}</green> in {self.csv_path}\n"
+            f"Starting run: <green>{self.run}</green>\n"
         )
 
-        with open(self.csv_path, "w", newline="") as f:
-            for key, value in self.metadata.items():
-                f.write(f"# {key}: {value}\n")
-
+        self._insert_run()
         self.csv_file = open(self.csv_path, "a")
+
+    def _ensure_tables(self):
+        assert self.conn
+        self.conn.execute("""
+        CREATE TABLE IF NOT EXISTS runs (
+            run TEXT PRIMARY KEY,
+            command, timestamp, git_commit, config
+        )
+        """)
+
+        self.conn.execute("""
+        CREATE TABLE IF NOT EXISTS config (
+            run REFERENCES runs(run),
+            key, value,
+            PRIMARY KEY (run, key)
+        )
+        """)
+
+    def _insert_run(self):
+        metadata = {
+            "run": self.run,
+            "time": datetime.now().isoformat(),
+            "command": _get_command(),
+            "git_commit": _get_git_commit(),
+            "config": json.dumps(vars(self.config)),
+        }
+
+        assert self.conn
+
+        self.conn.execute(
+            "INSERT INTO runs (run, command, timestamp, git_commit, config) VALUES (?, ?, ?, ?, ?)",
+            (
+                self.run,
+                metadata["command"],
+                metadata["time"],
+                metadata["git_commit"],
+                metadata["config"],
+            ),
+        )
+        config_items = vars(self.config).items()
+        self.conn.executemany(
+            "INSERT INTO config (run, key, value) VALUES (?, ?, ?)",
+            ((self.run, key, str(value)) for key, value in config_items),
+        )
+
+        with open(self.csv_path, "w") as f:
+            for key, value in metadata.items():
+                f.write(f"# {key}: {value}\n")
 
     def log(self, d: dict, step: Optional[int], commit: bool):
         if step is not None:
@@ -130,24 +173,35 @@ class CsvWriter(Writer):
             self.csv_file.close()
             self.csv_file = None
 
+        if self.conn:
+            self.conn.close()
+            self.conn = None
+
     def __del__(self):
         self.close()
 
 
-def _fetch(name: str) -> pd.DataFrame:
-    csv_path = os.path.join(VANDC_DIR, f"{name}.csv")
-    df = pd.read_csv(csv_path, comment="#")
+def _query(q, args=None):
+    """Execute a SQL query and return the first column of results as a list of strings"""
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        cursor = conn.execute(q, args or ())
+        results = [str(row[0]) for row in cursor.fetchall()]
+        return results
+    finally:
+        conn.close()
+
+
+def _fetch(run: str) -> pd.DataFrame:
+    df = pd.read_csv(VANDC_DIR / f"{run}.csv", comment="#")
     if "step" in df.columns:
         df = df.set_index("step")
-
     return df
 
 
 def _meta(name: str) -> dict:
-    csv_path = os.path.join(VANDC_DIR, f"{name}.csv")
-
     metadata = {}
-    with open(csv_path, "r") as f:
+    with open(VANDC_DIR / f"{name}.csv", "r") as f:
         for line in f:
             if not line.startswith("#"):
                 break
@@ -158,3 +212,20 @@ def _meta(name: str) -> dict:
                 metadata[key.strip()] = value.strip()
 
     return metadata
+
+
+def _get_run(run) -> str:
+    if run is None:
+        runs = _query("SELECT run FROM runs ORDER BY timestamp DESC LIMIT 1")
+        if not runs:
+            raise ValueError("No runs found in database")
+        return runs[0]
+    return run
+
+
+def fetch(run=None):
+    return _fetch(_get_run(run))
+
+
+def meta(run=None):
+    return _meta(_get_run(run))
