@@ -17,6 +17,11 @@ def log(data: dict, step: Optional[int] = None, commit: bool = True):
         _writer.log(data, step, commit)
 
 
+def commit():
+    if _writer is not None:
+        _writer.commit()
+
+
 def run_name() -> str:
     if _writer is not None:
         return _writer.run
