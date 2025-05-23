@@ -214,6 +214,12 @@ def _meta(name: str) -> dict:
     return metadata
 
 
+def _describe(name: str):
+    meta = _meta(name)
+    print(f"{name}: {meta['time']} on commit {meta['git_commit']}")
+    print(f"$ {meta['command']}")
+
+
 def _get_run(run) -> str:
     if run is None:
         runs = _query("SELECT run FROM runs ORDER BY timestamp DESC LIMIT 1")
@@ -221,6 +227,10 @@ def _get_run(run) -> str:
             raise ValueError("No runs found in database")
         return runs[0]
     return run
+
+
+def describe(run=None):
+    _describe(_get_run(run))
 
 
 def fetch(run=None):

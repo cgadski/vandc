@@ -21,5 +21,9 @@ dependencies = [
 ]
 authors = [{ name = "Christopher Gadzinski", email = "me@cgad.ski" }]
 
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+
 [tool.hatch.build.targets.wheel]
 packages = ["vandc"]

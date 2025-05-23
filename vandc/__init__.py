@@ -1,7 +1,6 @@
 from typing import Optional
 import json
-import pandas as pd
-from .writer import Writer, CsvWriter, fetch, meta
+from .writer import Writer, CsvWriter, fetch, meta, describe
 
 _writer: Optional[Writer] = None
 
