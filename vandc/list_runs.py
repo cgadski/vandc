@@ -4,26 +4,31 @@ from pathlib import Path
 import os
 from datetime import datetime
 import pandas as pd
-from .writer import vandc_dir, db_path
+from .writer import _vandc_dir, _db_path
+
 
 def get_runs(limit=10):
     """Fetch the most recent runs from the database"""
-    conn = sqlite3.connect(db_path())
+    conn = sqlite3.connect(_db_path())
     try:
-        cursor = conn.execute("""
+        cursor = conn.execute(
+            """
             SELECT run, timestamp, command, config
             FROM runs
             ORDER BY timestamp DESC
             LIMIT ?
-        """, (limit,))
+        """,
+            (limit,),
+        )
         return cursor.fetchall()
     finally:
         conn.close()
 
+
 def count_logs(run_name):
     """Count the number of log entries for a run"""
     try:
-        csv_path = vandc_dir() / f"{run_name}.csv"
+        csv_path = _vandc_dir() / f"{run_name}.csv"
         if not csv_path.exists():
             return 0
 
@@ -31,6 +36,7 @@ def count_logs(run_name):
         return len(df)
     except Exception:
         return 0
+
 
 def format_timestamp(ts_string):
     """Format ISO timestamp to a more readable format"""
@@ -40,18 +46,24 @@ def format_timestamp(ts_string):
     except ValueError:
         return ts_string
 
+
 def list_runs():
     parser = argparse.ArgumentParser(description="List recent runs")
-    parser.add_argument("-n", "--limit", type=int, default=10,
-                        help="Number of runs to display (default: 10)")
+    parser.add_argument(
+        "-n",
+        "--limit",
+        type=int,
+        default=10,
+        help="Number of runs to display (default: 10)",
+    )
     args = parser.parse_args()
 
-    if not vandc_dir().exists():
-        print(f"No .vandc directory found at {vandc_dir()}")
+    if not _vandc_dir().exists():
+        print(f"No .vandc directory found at {_vandc_dir()}")
         return
 
-    if not db_path().exists():
-        print(f"No database found at {db_path()}")
+    if not _db_path().exists():
+        print(f"No database found at {_db_path()}")
         return
 
     runs = get_runs(args.limit)
@@ -69,6 +81,7 @@ def list_runs():
         print(f"Command: {command}")
         print(f"Logs: {num_logs}")
         print("-" * 80)
+
 
 if __name__ == "__main__":
     list_runs()

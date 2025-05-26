@@ -14,19 +14,7 @@ import functools
 
 
 @functools.lru_cache(maxsize=1)
-def vandc_dir():
-    git_root = _get_git_root()
-    if git_root:
-        return git_root / ".vandc"
-    else:
-        return Path(".vandc")
-
-
-def db_path():
-    return vandc_dir() / "db.sqlite"
-
-
-def _get_git_commit():
+def _git_commit() -> str:
     try:
         return (
             subprocess.check_output(
@@ -36,24 +24,30 @@ def _get_git_commit():
             .strip()
         )
     except:
-        return None
+        raise RuntimeError("No git repository found")
 
 
-def _get_git_root():
-    try:
-        root = (
-            subprocess.check_output(
-                ["git", "rev-parse", "--show-toplevel"], stderr=subprocess.DEVNULL
-            )
-            .decode("ascii")
-            .strip()
+@functools.lru_cache(maxsize=1)
+def _git_root() -> Path:
+    root = (
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"], stderr=subprocess.DEVNULL
         )
-        return Path(root)
-    except:
-        return None
+        .decode("ascii")
+        .strip()
+    )
+    return Path(root)
 
 
-def _to_relative_path(root: Path, s: str) -> str:
+def _vandc_dir():
+    return _git_root() / ".vandc"
+
+
+def _db_path():
+    return _git_root() / ".vandc" / "db.sqlite"
+
+
+def _make_arg_relative(root: Path, s: str) -> str:
     try:
         path = Path(s)
         if path.is_absolute() and str(path).startswith(str(root)):
@@ -64,11 +58,8 @@ def _to_relative_path(root: Path, s: str) -> str:
 
 
 def _get_command():
-    root = _get_git_root()
-    if root:
-        return " ".join(_to_relative_path(root, s) for s in sys.argv)
-    else:
-        return " ".join(sys.argv)
+    root = _git_root()
+    return " ".join(_make_arg_relative(root, s) for s in sys.argv)
 
 
 class Writer:
@@ -88,8 +79,8 @@ class CsvWriter(Writer):
         filename: Optional[str] = None,
     ):
         self.run = human_id.generate_id()
-        os.makedirs(vandc_dir(), exist_ok=True)
-        self.csv_path = vandc_dir() / f"{self.run}.csv"
+        os.makedirs(_vandc_dir(), exist_ok=True)
+        self.csv_path = _vandc_dir() / f"{self.run}.csv"
 
         self.config = config
 
@@ -97,7 +88,7 @@ class CsvWriter(Writer):
         self.csv_file = None
         self.writer = None
 
-        self.conn = sqlite3.connect(db_path())
+        self.conn = sqlite3.connect(_db_path())
         self.conn.autocommit = True
         self._ensure_tables()
 
@@ -130,7 +121,7 @@ class CsvWriter(Writer):
             "run": self.run,
             "time": datetime.now().isoformat(),
             "command": _get_command(),
-            "git_commit": _get_git_commit(),
+            "git_commit": _git_commit(),
             "config": json.dumps(vars(self.config)),
         }
 
@@ -193,7 +184,7 @@ class CsvWriter(Writer):
 
 def _query(q, args=None):
     """Execute a SQL query and return the first column of results as a list of strings"""
-    conn = sqlite3.connect(db_path())
+    conn = sqlite3.connect(_db_path())
     try:
         cursor = conn.execute(q, args or ())
         results = [str(row[0]) for row in cursor.fetchall()]
@@ -202,8 +193,20 @@ def _query(q, args=None):
         conn.close()
 
 
+def run_path(run: str) -> Path:
+    for path in [
+        _git_root() / ".vandc" / f"{run}.csv",
+        _git_root() / "vandc" / f"{run}.csv",
+    ]:
+        if path.exists():
+            return path
+
+    raise FileNotFoundError(f"Run '{run}' not found")
+
+
 def _fetch(run: str) -> pd.DataFrame:
-    df = pd.read_csv(vandc_dir() / f"{run}.csv", comment="#")
+    path = run_path(run)
+    df = pd.read_csv(path, comment="#")
     if "step" in df.columns:
         df = df.set_index("step")
     return df
@@ -211,7 +214,8 @@ def _fetch(run: str) -> pd.DataFrame:
 
 def _meta(name: str) -> dict:
     metadata = {}
-    with open(vandc_dir() / f"{name}.csv", "r") as f:
+    path = run_path(name)
+    with open(path, "r") as f:
         for line in f:
             if not line.startswith("#"):
                 break
