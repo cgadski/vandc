@@ -4,16 +4,26 @@ import os
 import sqlite3
 from typing import List, Optional, Tuple, Dict, Any
 import pandas as pd
-import torch as t
 import human_id
 import subprocess
 from datetime import datetime
 from loguru import logger
 import sys
 from pathlib import Path
+import functools
 
-VANDC_DIR = Path(".vandc")
-DB_PATH = VANDC_DIR / "db.sqlite"
+
+@functools.lru_cache(maxsize=1)
+def vandc_dir():
+    git_root = _get_git_root()
+    if git_root:
+        return git_root / ".vandc"
+    else:
+        return Path(".vandc")
+
+
+def db_path():
+    return vandc_dir() / "db.sqlite"
 
 
 def _get_git_commit():
@@ -78,8 +88,8 @@ class CsvWriter(Writer):
         filename: Optional[str] = None,
     ):
         self.run = human_id.generate_id()
-        os.makedirs(VANDC_DIR, exist_ok=True)
-        self.csv_path = VANDC_DIR / f"{self.run}.csv"
+        os.makedirs(vandc_dir(), exist_ok=True)
+        self.csv_path = vandc_dir() / f"{self.run}.csv"
 
         self.config = config
 
@@ -87,7 +97,7 @@ class CsvWriter(Writer):
         self.csv_file = None
         self.writer = None
 
-        self.conn = sqlite3.connect(DB_PATH)
+        self.conn = sqlite3.connect(db_path())
         self.conn.autocommit = True
         self._ensure_tables()
 
@@ -183,7 +193,7 @@ class CsvWriter(Writer):
 
 def _query(q, args=None):
     """Execute a SQL query and return the first column of results as a list of strings"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db_path())
     try:
         cursor = conn.execute(q, args or ())
         results = [str(row[0]) for row in cursor.fetchall()]
@@ -193,7 +203,7 @@ def _query(q, args=None):
 
 
 def _fetch(run: str) -> pd.DataFrame:
-    df = pd.read_csv(VANDC_DIR / f"{run}.csv", comment="#")
+    df = pd.read_csv(vandc_dir() / f"{run}.csv", comment="#")
     if "step" in df.columns:
         df = df.set_index("step")
     return df
@@ -201,7 +211,7 @@ def _fetch(run: str) -> pd.DataFrame:
 
 def _meta(name: str) -> dict:
     metadata = {}
-    with open(VANDC_DIR / f"{name}.csv", "r") as f:
+    with open(vandc_dir() / f"{name}.csv", "r") as f:
         for line in f:
             if not line.startswith("#"):
                 break

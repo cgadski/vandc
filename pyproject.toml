@@ -21,6 +21,9 @@ dependencies = [
 ]
 authors = [{ name = "Christopher Gadzinski", email = "me@cgad.ski" }]
 
+[project.scripts]
+vandc = "vandc:list_runs"
+
 [tool.pyright]
 venvPath = "."
 venv = ".venv"

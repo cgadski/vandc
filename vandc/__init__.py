@@ -1,6 +1,7 @@
 from typing import Optional
 import json
 from .writer import Writer, CsvWriter, fetch, meta, describe
+from .list_runs import list_runs
 
 _writer: Optional[Writer] = None
 
