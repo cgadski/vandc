@@ -15,11 +15,22 @@ def init(config=None):
 def log(data: dict, step: Optional[int] = None, commit: bool = True):
     if _writer is not None:
         _writer.log(data, step, commit)
+        _writer.commit()
+
+
+def log_fast(data: dict, step: Optional[int] = None, commit: bool = True):
+    if _writer is not None:
+        _writer.log(data, step, commit)
 
 
 def commit():
     if _writer is not None:
         _writer.commit()
+
+
+def close():
+    global _writer
+    _writer = None
 
 
 def run_name() -> str:
