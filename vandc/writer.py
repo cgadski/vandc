@@ -7,7 +7,21 @@ import pandas as pd
 import human_id
 from datetime import datetime, timezone
 from loguru import logger
+import numpy as np
+import torch
 from vandc.util import *
+
+
+def flatten_arrays(d):
+    result = {}
+    for k, v in d.items():
+        if isinstance(v, np.ndarray):
+            result[k] = v.item()
+        elif isinstance(v, torch.Tensor):
+            result[k] = v.item()
+        else:
+            result[k] = v
+    return result
 
 
 class CsvWriter:
@@ -119,8 +133,6 @@ class CsvWriter:
 
         if commit:
             self.step += 1
-
-        return d
 
     def commit(self):
         if self.csv_file:

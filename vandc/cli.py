@@ -7,7 +7,6 @@ from typing import List, Dict, Any, Optional
 import questionary
 from datetime import datetime, timezone
 from vandc.util import db_path, vandc_dir
-import pandas as pd
 
 import pyperclip
 
@@ -22,6 +21,7 @@ def get_runs_by_script(script_name: Optional[str] = None) -> List[Dict[str, Any]
                 FROM runs
                 WHERE command LIKE ?
                 ORDER BY timestamp DESC
+                LIMIT 20
                 """,
                 (f"{script_name}%",),
             )
@@ -31,6 +31,7 @@ def get_runs_by_script(script_name: Optional[str] = None) -> List[Dict[str, Any]
                 SELECT run, command, timestamp, git_commit, config
                 FROM runs
                 ORDER BY timestamp DESC
+                LIMIT 20
                 """,
             )
         results = []
@@ -114,7 +115,8 @@ def select_run(runs: List[Dict[str, Any]]) -> None:
             use_search_filter=True,
         ).ask()
 
-        pyperclip.copy(selected_run["run"])
+        if selected_run:
+            pyperclip.copy(selected_run["run"])
 
     except KeyboardInterrupt:
         print("\nExiting...")
@@ -122,6 +124,8 @@ def select_run(runs: List[Dict[str, Any]]) -> None:
 
 
 def show_run_data(n: int, run_name: str) -> None:
+    import pandas as pd
+
     csv_path = vandc_dir() / f"{run_name}.csv"
 
     if not csv_path.exists():

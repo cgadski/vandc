@@ -1,5 +1,4 @@
 from typing import Optional
-import json
 from typing import Iterable
 from .writer import CsvWriter, fetch, meta, describe
 import qqdm as og_tqdm
@@ -23,10 +22,38 @@ def progress(it: Iterable) -> og_tqdm.qqdm:
 
 
 def log(data: dict, step: Optional[int] = None, commit: bool = True):
+    if not _logs_enabled:
+        return
+
+    data = writer.flatten_arrays(data)
+
+    if _qqdm is not None:
+        _qqdm.set_infos(data)
+
     if _writer is not None:
-        if _qqdm is not None:
-            _qqdm.set_infos(data)
         _writer.log(data, step, commit)
+
+
+_logs_enabled = True
+
+
+def enable_logs(enable=True):
+    global _logs_enabled
+    _logs_enabled = enable
+
+
+class no_logs:
+    def __init__(self):
+        self.prev_state = _logs_enabled
+
+    def __enter__(self):
+        global _logs_enabled
+        _logs_enabled = False
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        global _logs_enabled
+        _logs_enabled = self.prev_state
 
 
 def commit():
