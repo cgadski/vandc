@@ -23,7 +23,7 @@ def get_runs_by_script(script_name: Optional[str] = None) -> List[Dict[str, Any]
                 WHERE command LIKE ?
                 ORDER BY timestamp DESC
                 """,
-                (f"{script_name}%",)
+                (f"{script_name}%",),
             )
         else:
             cursor = conn.execute(
@@ -41,13 +41,15 @@ def get_runs_by_script(script_name: Optional[str] = None) -> List[Dict[str, Any]
             except json.JSONDecodeError:
                 config = {}
 
-            results.append({
-                'run': run_id,
-                'command': command,
-                'timestamp': timestamp,
-                'git_commit': git_commit,
-                'config': config
-            })
+            results.append(
+                {
+                    "run": run_id,
+                    "command": command,
+                    "timestamp": timestamp,
+                    "git_commit": git_commit,
+                    "config": config,
+                }
+            )
         return results
     finally:
         conn.close()
@@ -83,15 +85,16 @@ def format_time_ago(s: str) -> str:
 
 
 def format_run_choice(run: Dict[str, Any]) -> str:
-    time_ago = format_time_ago(run['timestamp']) if run['timestamp'] else "unknown time"
+    time_ago = format_time_ago(run["timestamp"]) if run["timestamp"] else "unknown time"
 
-    if run['config']:
-        config_parts = [f"{k}={v}" for k, v in run['config'].items()]
+    if run["config"]:
+        config_parts = [f"{k}={v}" for k, v in run["config"].items()]
         config_str = ", ".join(config_parts)
     else:
         config_str = "no config"
 
     return f"{run['command']} ({time_ago}) | {config_str}"
+
 
 def select_run(runs: List[Dict[str, Any]]) -> None:
     if not runs:
@@ -111,7 +114,7 @@ def select_run(runs: List[Dict[str, Any]]) -> None:
             use_search_filter=True,
         ).ask()
 
-        pyperclip.copy(selected_run['run'])
+        pyperclip.copy(selected_run["run"])
 
     except KeyboardInterrupt:
         print("\nExiting...")
@@ -128,7 +131,6 @@ def show_run_data(n: int, run_name: str) -> None:
     try:
         df = pd.read_csv(csv_path, comment="#")
 
-
         if df.empty:
             print(f"(No data)")
         else:
@@ -140,7 +142,7 @@ def show_run_data(n: int, run_name: str) -> None:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("script", nargs='?')
+    parser.add_argument("script", nargs="?")
     parser.add_argument("--tail")
     parser.add_argument("-n", type=int, default=20)
 

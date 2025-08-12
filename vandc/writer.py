@@ -2,7 +2,7 @@ import json
 import csv
 import os
 import sqlite3
-from typing import  Optional
+from typing import Optional
 import pandas as pd
 import human_id
 from datetime import datetime, timezone
@@ -13,11 +13,12 @@ from vandc.util import *
 class CsvWriter:
     config: dict
     conn: Optional[sqlite3.Connection]
+    cmd: str
 
     def __init__(
         self,
         *config,
-        filename: Optional[str] = None,
+        cmd: Optional[str] = None,
     ):
         self.run = human_id.generate_id()
         os.makedirs(vandc_dir(), exist_ok=True)
@@ -30,6 +31,11 @@ class CsvWriter:
                     self.config.update(cfg)
                 else:
                     self.config.update(vars(cfg))
+
+        if cmd is not None:
+            self.cmd = cmd
+        else:
+            self.cmd = command_relative()
 
         self.step = 0
         self.writer = None
@@ -48,7 +54,6 @@ class CsvWriter:
             logger.opt(raw=True, colors=True).info(
                 f"Config:\n<blue>{config_str}</blue>\n"
             )
-
 
         self._insert_run()
         self.csv_file = open(self.csv_path, "a")
@@ -74,7 +79,7 @@ class CsvWriter:
         metadata = {
             "run": self.run,
             "time": datetime.now(timezone.utc).isoformat(),
-            "command": command_relative(),
+            "command": self.cmd,
             "git_commit": git_commit(),
             "config": json.dumps(self.config),
         }
@@ -107,7 +112,7 @@ class CsvWriter:
         d["step"] = self.step
 
         if self.writer is None:
-            self.writer = csv.DictWriter(self.csv_file, fieldnames=d.keys()) # pyright: ignore
+            self.writer = csv.DictWriter(self.csv_file, fieldnames=d.keys())  # pyright: ignore
             self.writer.writeheader()
 
         self.writer.writerow(d)

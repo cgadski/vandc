@@ -7,10 +7,12 @@ import qqdm as og_tqdm
 _writer: Optional[CsvWriter] = None
 _qqdm: Optional[og_tqdm.qqdm] = None
 
-def init(*config):
+
+def init(*config, cmd=None):
     global _writer
-    if _writer is None:
-        _writer = CsvWriter(*config)
+    if _writer is not None:
+        close()
+    _writer = CsvWriter(*config, cmd=cmd)
 
 
 def progress(it: Iterable) -> og_tqdm.qqdm:
