@@ -2,99 +2,36 @@ import json
 import csv
 import os
 import sqlite3
-from typing import List, Optional, Tuple, Dict, Any
+from typing import  Optional
 import pandas as pd
 import human_id
-import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from loguru import logger
-import sys
-from pathlib import Path
-import functools
+from vandc.util import *
 
 
-@functools.lru_cache(maxsize=1)
-def vandc_dir():
-    git_root = _get_git_root()
-    if git_root:
-        return git_root / ".vandc"
-    else:
-        return Path(".vandc")
+class CsvWriter:
+    config: dict
+    conn: Optional[sqlite3.Connection]
 
-
-def db_path():
-    return vandc_dir() / "db.sqlite"
-
-
-def _get_git_commit():
-    try:
-        return (
-            subprocess.check_output(
-                ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
-            )
-            .decode("ascii")
-            .strip()
-        )
-    except:
-        return None
-
-
-def _get_git_root():
-    try:
-        root = (
-            subprocess.check_output(
-                ["git", "rev-parse", "--show-toplevel"], stderr=subprocess.DEVNULL
-            )
-            .decode("ascii")
-            .strip()
-        )
-        return Path(root)
-    except:
-        return None
-
-
-def _to_relative_path(root: Path, s: str) -> str:
-    try:
-        path = Path(s)
-        if path.is_absolute() and str(path).startswith(str(root)):
-            return str(path.relative_to(root))
-        return s
-    except:
-        return s
-
-
-def _get_command():
-    root = _get_git_root()
-    if root:
-        return " ".join(_to_relative_path(root, s) for s in sys.argv)
-    else:
-        return " ".join(sys.argv)
-
-
-class Writer:
-    run: str
-
-    def log(self, d: dict, step: Optional[int], commit: bool):
-        pass
-
-    def commit(self):
-        pass
-
-
-class CsvWriter(Writer):
     def __init__(
         self,
-        config,
+        *config,
         filename: Optional[str] = None,
     ):
         self.run = human_id.generate_id()
         os.makedirs(vandc_dir(), exist_ok=True)
         self.csv_path = vandc_dir() / f"{self.run}.csv"
 
-        self.config = config
+        self.config = {}
+        for cfg in config:
+            if cfg is not None:
+                if isinstance(cfg, dict):
+                    self.config.update(cfg)
+                else:
+                    self.config.update(vars(cfg))
 
         self.step = 0
-        self.csv_file = None
         self.writer = None
 
         self.conn = sqlite3.connect(db_path())
@@ -104,6 +41,14 @@ class CsvWriter(Writer):
         logger.opt(raw=True, colors=True).info(
             f"Starting run: <green>{self.run}</green>\n"
         )
+
+        if self.config:
+            config_lines = [f"  {key}: {value}" for key, value in self.config.items()]
+            config_str = "\n".join(config_lines)
+            logger.opt(raw=True, colors=True).info(
+                f"Config:\n<blue>{config_str}</blue>\n"
+            )
+
 
         self._insert_run()
         self.csv_file = open(self.csv_path, "a")
@@ -128,10 +73,10 @@ class CsvWriter(Writer):
     def _insert_run(self):
         metadata = {
             "run": self.run,
-            "time": datetime.now().isoformat(),
-            "command": _get_command(),
-            "git_commit": _get_git_commit(),
-            "config": json.dumps(vars(self.config)),
+            "time": datetime.now(timezone.utc).isoformat(),
+            "command": command_relative(),
+            "git_commit": git_commit(),
+            "config": json.dumps(self.config),
         }
 
         assert self.conn
@@ -146,10 +91,9 @@ class CsvWriter(Writer):
                 metadata["config"],
             ),
         )
-        config_items = vars(self.config).items()
         self.conn.executemany(
             "INSERT INTO config (run, key, value) VALUES (?, ?, ?)",
-            ((self.run, key, str(value)) for key, value in config_items),
+            ((self.run, key, str(value)) for key, value in self.config.items()),
         )
 
         with open(self.csv_path, "w") as f:
@@ -163,13 +107,15 @@ class CsvWriter(Writer):
         d["step"] = self.step
 
         if self.writer is None:
-            self.writer = csv.DictWriter(self.csv_file, fieldnames=d.keys())  # pyright: ignore
+            self.writer = csv.DictWriter(self.csv_file, fieldnames=d.keys()) # pyright: ignore
             self.writer.writeheader()
 
         self.writer.writerow(d)
 
         if commit:
             self.step += 1
+
+        return d
 
     def commit(self):
         if self.csv_file:
