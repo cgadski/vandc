@@ -1,10 +1,10 @@
 from typing import Optional
 from typing import Iterable
 from .writer import CsvWriter, fetch, meta, describe
-import qqdm as og_tqdm
+from qqdm import qqdm
 
 _writer: Optional[CsvWriter] = None
-_qqdm: Optional[og_tqdm.qqdm] = None
+_qqdm: Optional[qqdm] = None
 
 
 def init(*config, cmd=None):
@@ -14,10 +14,10 @@ def init(*config, cmd=None):
     _writer = CsvWriter(*config, cmd=cmd)
 
 
-def progress(it: Iterable) -> og_tqdm.qqdm:
+def progress(it: Iterable) -> qqdm:
     global _qqdm
     print()
-    _qqdm = og_tqdm.qqdm(it)
+    _qqdm = qqdm(it)
     return _qqdm
 
 
@@ -28,7 +28,14 @@ def log(data: dict, step: Optional[int] = None, commit: bool = True):
     data = writer.flatten_arrays(data)
 
     if _qqdm is not None:
-        _qqdm.set_infos(data)
+        formatted_data = {}
+        for k, v in data.items():
+            if isinstance(v, float):
+                mantissa, exponent = f"{v:.2e}".split("e")
+                formatted_data[k] = f"{mantissa}{exponent}"
+            else:
+                formatted_data[k] = v
+        _qqdm.set_infos(formatted_data)
 
     if _writer is not None:
         _writer.log(data, step, commit)

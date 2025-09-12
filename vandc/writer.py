@@ -123,7 +123,8 @@ class CsvWriter:
         if step is not None:
             self.step = step
 
-        d["step"] = self.step
+        if d.get("step") is None:
+            d["step"] = self.step
 
         if self.writer is None:
             self.writer = csv.DictWriter(self.csv_file, fieldnames=d.keys())  # pyright: ignore
@@ -173,6 +174,8 @@ def _fetch(run: str) -> pd.DataFrame:
 
 
 def _meta(name: str) -> dict:
+    import json
+
     metadata = {}
     with open(vandc_dir() / f"{name}.csv", "r") as f:
         for line in f:
@@ -183,6 +186,13 @@ def _meta(name: str) -> dict:
             if len(parts) == 2:
                 key, value = parts
                 metadata[key.strip()] = value.strip()
+
+    if "config" in metadata:
+        try:
+            metadata["config"] = json.loads(metadata["config"])
+        except json.JSONDecodeError:
+            # Keep the original string if JSON parsing fails
+            pass
 
     return metadata
 
