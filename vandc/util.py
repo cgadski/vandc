@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 from typing import Optional
 
+
 @functools.lru_cache(maxsize=1)
 def git_root() -> Optional[Path]:
     try:
@@ -24,6 +25,10 @@ def vandc_dir():
         return root / ".vandc"
     else:
         return Path(".vandc")
+
+
+def run_path(run: str):
+    return vandc_dir() / f"{run}.csv"
 
 
 def db_path():

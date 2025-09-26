@@ -3,13 +3,12 @@ import csv
 import os
 import sqlite3
 from typing import Optional
-import pandas as pd
 import human_id
 from datetime import datetime, timezone
 from loguru import logger
 import numpy as np
 import torch
-from vandc.util import *
+from .util import *
 
 
 def flatten_arrays(d):
@@ -153,72 +152,3 @@ class CsvWriter:
 
     def __del__(self):
         self.close()
-
-
-def _query(q, args=None):
-    """Execute a SQL query and return the first column of results as a list of strings"""
-    conn = sqlite3.connect(db_path())
-    try:
-        cursor = conn.execute(q, args or ())
-        results = [str(row[0]) for row in cursor.fetchall()]
-        return results
-    finally:
-        conn.close()
-
-
-def _fetch(run: str) -> pd.DataFrame:
-    df = pd.read_csv(vandc_dir() / f"{run}.csv", comment="#")
-    if "step" in df.columns:
-        df = df.set_index("step")
-    return df
-
-
-def _meta(name: str) -> dict:
-    import json
-
-    metadata = {}
-    with open(vandc_dir() / f"{name}.csv", "r") as f:
-        for line in f:
-            if not line.startswith("#"):
-                break
-
-            parts = line[1:].strip().split(":", 1)
-            if len(parts) == 2:
-                key, value = parts
-                metadata[key.strip()] = value.strip()
-
-    if "config" in metadata:
-        try:
-            metadata["config"] = json.loads(metadata["config"])
-        except json.JSONDecodeError:
-            # Keep the original string if JSON parsing fails
-            pass
-
-    return metadata
-
-
-def _describe(name: str):
-    meta = _meta(name)
-    print(f"{name}: {meta['time']} on commit {meta['git_commit']}")
-    print(f"$ {meta['command']}")
-
-
-def _get_run(run) -> str:
-    if run is None:
-        runs = _query("SELECT run FROM runs ORDER BY timestamp DESC LIMIT 1")
-        if not runs:
-            raise ValueError("No runs found in database")
-        return runs[0]
-    return run
-
-
-def describe(run=None):
-    _describe(_get_run(run))
-
-
-def fetch(run=None):
-    return _fetch(_get_run(run))
-
-
-def meta(run=None):
-    return _meta(_get_run(run))

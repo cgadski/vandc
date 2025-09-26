@@ -1,6 +1,7 @@
 from typing import Optional
 from typing import Iterable
-from .writer import CsvWriter, fetch, meta, describe
+from .writer import CsvWriter
+from .fetch import fetch, fetch_all
 from qqdm import qqdm
 
 _writer: Optional[CsvWriter] = None
