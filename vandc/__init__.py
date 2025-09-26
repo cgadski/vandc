@@ -1,7 +1,7 @@
 from typing import Optional
 from typing import Iterable
 from .writer import CsvWriter
-from .fetch import fetch, fetch_all
+from .fetch import fetch, fetch_all, collate_runs
 from qqdm import qqdm
 
 _writer: Optional[CsvWriter] = None

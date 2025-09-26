@@ -88,12 +88,16 @@ def fetch_all(
     args = []
 
     if command_glob:
-        query += "AND command LIKE ?"
-        args += command_glob
+        query += ["AND command LIKE ?"]
+        args += [command_glob]
 
     if this_commit:
-        query += "AND git_commit = ?"
+        query += ["AND git_commit = ?"]
         args += [git_commit()]
 
     runs = _query(" ".join(query), args)
     return [read_run(run_path(run)) for run in runs]
+
+
+def collate_runs(runs: List[Run]) -> pd.DataFrame:
+    return pd.concat(run.logs.assign(**run.meta["config"]) for run in runs)
