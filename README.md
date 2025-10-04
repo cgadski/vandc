@@ -46,3 +46,5 @@ step
 $ uv run demo/graph.py
 # (nice seaborn graph built from the collated dataframe)
 ```
+
+You can also run the `vandc` script to select a single run interactively, and then fetch it using `vandc.fetch("run-name")`.
