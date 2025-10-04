@@ -4,25 +4,29 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vandc"
-version = "0.1.0"
+version = "0.1.1"
 description = "Wandb but without any features"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "human-id>=0.2.0",
     "loguru>=0.7.3",
     "numpy>=2.2.5",
     "pandas>=2.2.3",
-    "pyperclip>=1.9.0",
     "qqdm>=0.0.7",
     "questionary>=2.1.0",
-    "seaborn>=0.13.2",
     "torch>=2.8.0",
 ]
 authors = [{ name = "Christopher Gadzinski", email = "me@cgad.ski" }]
 
+[project.optional-dependencies]
+demo = [
+    "seaborn>=0.13.2",
+]
+
 [project.scripts]
 vandc = "vandc.cli:main"
+
 
 [tool.pyright]
 venvPath = "."

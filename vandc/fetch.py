@@ -57,17 +57,20 @@ def _read_meta(path: Path) -> dict:
 @dataclass
 class Run:
     meta: dict
+    config:dict
     logs: pd.DataFrame
 
     def __repr__(self):
         m = self.meta
         n_logs = self.logs.shape[0]
-        return f"<run {m['run']}: {m['command']} ({n_logs} logs)"
+        return f"<{m['run']} ({n_logs} logs): {m['command']}>"
 
 
 def read_run(path: Path) -> Run:
+    meta = _read_meta(path)
     return Run(
-        meta=_read_meta(path),
+        meta=meta,
+        config=meta.get("config", {}),
         logs=_read_data(path),
     )
 

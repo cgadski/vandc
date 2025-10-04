@@ -20,7 +20,7 @@ def run(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", type=int, required=True)
+    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--d", type=int, required=True)
     parser.add_argument("--beta", type=float, required=True)
     parser.add_argument("--iters", type=int, default=1000)
