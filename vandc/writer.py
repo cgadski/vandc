@@ -54,7 +54,6 @@ class CsvWriter:
         self.writer = None
 
         self.conn = sqlite3.connect(db_path())
-        self.conn.autocommit = True
         self._ensure_tables()
 
         logger.opt(raw=True, colors=True).info(
@@ -88,6 +87,8 @@ class CsvWriter:
         )
         """)
 
+        self.conn.commit()
+
     def _insert_run(self):
         metadata = {
             "run": self.run,
@@ -113,6 +114,8 @@ class CsvWriter:
             "INSERT INTO config (run, key, value) VALUES (?, ?, ?)",
             ((self.run, key, str(value)) for key, value in self.config.items()),
         )
+
+        self.conn.commit()
 
         with open(self.csv_path, "w") as f:
             for key, value in metadata.items():
