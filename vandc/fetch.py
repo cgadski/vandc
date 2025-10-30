@@ -1,7 +1,8 @@
+import pathlib
 import sqlite3
 import pandas as pd
 from dataclasses import dataclass
-from typing import List
+from typing import List, Iterator
 from .util import *
 
 
@@ -57,7 +58,7 @@ def _read_meta(path: Path) -> dict:
 @dataclass
 class Run:
     meta: dict
-    config:dict
+    config: dict
     logs: pd.DataFrame
 
     def __repr__(self):
@@ -66,7 +67,7 @@ class Run:
         return f"<{m['run']} ({n_logs} logs): {m['command']}>"
 
 
-def read_run(path: Path) -> Run:
+def fetch_path(path: Path) -> Run:
     meta = _read_meta(path)
     return Run(
         meta=meta,
@@ -80,8 +81,14 @@ def fetch(run: Optional[str] = None) -> Run:
         runs = _query("SELECT run FROM runs ORDER BY timestamp DESC LIMIT 1")
         if not runs:
             raise ValueError("No runs found in database")
-        return read_run(run_path(runs[0]))
-    return read_run(run_path(run))
+        return fetch_path(run_path(runs[0]))
+    return fetch_path(run_path(run))
+
+
+def fetch_dir(dir: Path) -> Iterator[Run]:
+    for p in dir.iterdir():
+        if p.is_file() and p.suffix == ".csv":
+            yield fetch_path(p)
 
 
 def fetch_all(
@@ -99,7 +106,7 @@ def fetch_all(
         args += [git_commit()]
 
     runs = _query(" ".join(query), args)
-    return [read_run(run_path(run)) for run in runs]
+    return [fetch_path(run_path(run)) for run in runs]
 
 
 def collate_runs(runs: List[Run]) -> pd.DataFrame:

@@ -1,7 +1,7 @@
 from typing import Optional
 from typing import Iterable
 from .writer import CsvWriter
-from .fetch import fetch, fetch_all, collate_runs
+from .fetch import fetch, fetch_path, fetch_dir, fetch_all, collate_runs
 from qqdm import qqdm
 
 _writer: Optional[CsvWriter] = None
@@ -32,8 +32,11 @@ def log(data: dict, step: Optional[int] = None, commit: bool = True):
         formatted_data = {}
         for k, v in data.items():
             if isinstance(v, float):
-                mantissa, exponent = f"{v:.2e}".split("e")
-                formatted_data[k] = f"{mantissa}{exponent}"
+                repr = f"v:.2e"
+                formatted_data[k] = repr
+                if "e" in repr:
+                    mantissa, exponent = f"{v:.2e}".split("e")
+                    formatted_data[k] = f"{mantissa}{exponent}"
             else:
                 formatted_data[k] = v
         _qqdm.set_infos(formatted_data)
