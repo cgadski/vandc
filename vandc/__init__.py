@@ -32,11 +32,7 @@ def log(data: dict, step: Optional[int] = None, commit: bool = True):
         formatted_data = {}
         for k, v in data.items():
             if isinstance(v, float):
-                repr = f"v:.2e"
-                formatted_data[k] = repr
-                if "e" in repr:
-                    mantissa, exponent = f"{v:.2e}".split("e")
-                    formatted_data[k] = f"{mantissa}{exponent}"
+                formatted_data[k] = f"{v:.2e}"
             else:
                 formatted_data[k] = v
         _qqdm.set_infos(formatted_data)
